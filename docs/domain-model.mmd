@@ -1,0 +1,59 @@
+%% CSCI 360 - Build Demo and Applied Analysis
+%% Conceptual domain model for Pokemon Showdown (the problem domain: online
+%% competitive Pokemon battling), not the code's own class names.
+%% Render by pasting into a ```mermaid fenced block on the wiki page.
+
+classDiagram
+    class Player {
+        username
+        joinDate
+    }
+    class Team {
+        nickname
+        generation
+    }
+    class Pokemon {
+        nickname
+        level
+        ability
+        heldItem
+    }
+    class Species {
+        name
+        types
+        baseStats
+    }
+    class Move {
+        name
+        type
+        category
+    }
+    class Format {
+        name
+        tier
+        generation
+    }
+    class Battle {
+        startTime
+        endTime
+        winner
+    }
+    class ChatRoom {
+        name
+        topic
+    }
+    class LadderRating {
+        elo
+        wins
+        losses
+    }
+
+    Player "1" -- "0..*" Team : owns
+    Team "1" -- "1..6" Pokemon : fields
+    Pokemon "0..*" -- "1" Species : isA
+    Pokemon "0..*" -- "1..4" Move : knows
+    Battle "1" -- "2" Team : includes
+    Battle "1" -- "1" Format : playedUnder
+    Player "0..*" -- "0..*" ChatRoom : joins
+    Player "1" -- "0..*" LadderRating : holds
+    LadderRating "0..*" -- "1" Format : ratingFor
