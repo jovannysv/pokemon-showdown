@@ -1,0 +1,22 @@
+@startuml Pokemon-Showdown-Use-Cases
+left to right direction
+
+actor Player
+actor "Staff Moderator" as Moderator
+actor "Login Server" as LoginServer
+actor "Staff Auditor" as Auditor
+
+Moderator --|> Player
+
+rectangle "Pokémon Showdown Server" {
+  usecase "Play a Ranked Ladder Battle" as UC1
+  usecase "Challenge a Specific Player\nto a Battle" as UC2
+  usecase "Lock a Rule-Breaking User" as UC3
+}
+
+Player --> UC1
+Player --> UC2
+LoginServer --> UC1
+Moderator --> UC3
+Auditor ..> UC3 : reviews modlog entry
+@enduml
