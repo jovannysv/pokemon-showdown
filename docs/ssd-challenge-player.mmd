@@ -1,0 +1,8 @@
+%% SSD: Challenge a Specific Player to a Battle
+%% Primary actor: Player (the challenger)
+sequenceDiagram
+    actor Player
+    participant S as :ShowdownServer
+    Player->>S: challenge(targetId, formatId)
+    S-->>Player: challengeSent
+    S-->>Player: challengeAccepted(battleId)

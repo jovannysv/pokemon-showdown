@@ -1,12 +1,34 @@
-%% CSCI 360 - Build Demo and Applied Analysis
+%% CSCI 360 - Domain Model, SSDs, and Operation Contracts
 %% Conceptual domain model for Pokemon Showdown (the problem domain: online
 %% competitive Pokemon battling), not the code's own class names.
+%% Tightened from the Build Demo version using the noun-phrase analysis of
+%% the three fully-dressed use cases from the Requirements and Use Cases
+%% assignment; see docs/ssds-and-operation-contracts.md Part 1 for the
+%% noun-phrase table and the reasoning behind each addition.
 %% Render by pasting into a ```mermaid fenced block on the wiki page.
 
 classDiagram
     class Player {
         username
         joinDate
+    }
+    class Challenge {
+        sentAt
+    }
+    class BattleSearch {
+        startTime
+        searchRating
+    }
+    class Punishment {
+        type
+        reason
+        issuedAt
+        duration
+    }
+    class Message {
+        text
+        postedAt
+        hidden
     }
     class Team {
         nickname
@@ -32,6 +54,7 @@ classDiagram
         name
         tier
         generation
+        requiresTeam
     }
     class Battle {
         startTime
@@ -57,3 +80,13 @@ classDiagram
     Player "0..*" -- "0..*" ChatRoom : joins
     Player "1" -- "0..*" LadderRating : holds
     LadderRating "0..*" -- "1" Format : ratingFor
+    Player "0..*" -- "0..*" Player : hasAlternateAccount
+    Challenge "0..*" -- "1" Player : sentBy
+    Challenge "0..*" -- "1" Player : sentTo
+    Challenge "0..*" -- "1" Format : for
+    BattleSearch "0..*" -- "1" Player : searchedBy
+    BattleSearch "0..*" -- "1" Format : for
+    Punishment "0..*" -- "1" Player : issuedTo
+    Punishment "0..*" -- "1" Player : issuedBy
+    Message "0..*" -- "1" Player : postedBy
+    Message "0..*" -- "1" ChatRoom : postedIn

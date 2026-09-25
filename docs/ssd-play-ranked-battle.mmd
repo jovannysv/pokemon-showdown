@@ -1,0 +1,12 @@
+%% SSD: Play a Ranked Ladder Battle
+%% Primary actor: Player
+sequenceDiagram
+    actor Player
+    participant S as :ShowdownServer
+    Player->>S: searchBattle(formatId)
+    S-->>Player: searchStarted
+    loop until battle ends
+        Player->>S: chooseAction(battleId, choice)
+        S-->>Player: turnResult
+    end
+    S-->>Player: battleEnded(winner, newRating)

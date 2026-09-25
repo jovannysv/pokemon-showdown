@@ -1,0 +1,8 @@
+%% SSD: Lock a Rule-Breaking User
+%% Primary actor: Staff Moderator
+sequenceDiagram
+    actor Moderator
+    participant S as :ShowdownServer
+    Moderator->>S: lock(targetUserId, reason)
+    S-->>Moderator: lockApplied(targetUserId)
+    S-->>Moderator: lockAnnounced
