@@ -1,0 +1,49 @@
+%% CSCI 360 - Logical Architecture
+%% Dependency direction verified by grepping actual import statements
+%% across every top-level directory (see docs/logical-architecture.md
+%% Part 2 for the exact grep evidence). Every arrow below runs one way;
+%% no reverse import exists in the codebase.
+
+flowchart TD
+    subgraph Server["server/  —  Application Layer"]
+        Rooms["rooms.ts"]
+        RoomBattle["room-battle.ts"]
+        ChatCommands["chat-commands/"]
+        Sockets["sockets.ts"]
+        Ladders["ladders.ts"]
+        LoginServer["loginserver.ts"]
+    end
+
+    subgraph Sim["sim/  —  Simulation Engine"]
+        Battle["battle.ts"]
+        Dex["dex.ts"]
+        TeamValidator["team-validator.ts"]
+        BattleStream["battle-stream.ts"]
+    end
+
+    subgraph Data["data/  —  Game Content"]
+        Abilities["abilities.ts"]
+        Moves["moves.ts"]
+        FormatsData["formats-data.ts"]
+        Mods["mods/"]
+    end
+
+    subgraph Lib["lib/  —  Foundation Utilities"]
+        Fs["fs.ts"]
+        Streams["streams.ts"]
+        Database["database.ts"]
+        ProcessManager["process-manager.ts"]
+        Crashlogger["crashlogger.ts"]
+    end
+
+    Config["config/\n(config.js, formats.ts)"]
+    Databases["databases/\n(schemas/, migrations/)"]
+    Translations["translations/"]
+
+    Server --> Sim
+    Server --> Lib
+    Server --> Config
+    Server --> Translations
+    Sim --> Data
+    Sim --> Lib
+    Lib --> Databases

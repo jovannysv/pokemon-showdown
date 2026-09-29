@@ -1,0 +1,26 @@
+%% Interaction diagram expanding SSD 3's system event: lock(targetUserId, reason)
+%% Traces server/chat-commands/moderation.ts:866 (lock) through the real
+%% punishment and modlog write path.
+%% Real classes only: CommandContext, Punishments, ChatRoom, Modlog
+sequenceDiagram
+    actor Moderator
+    participant CC as :CommandContext
+    participant P as :Punishments
+    participant R as :ChatRoom
+    participant ML as :Modlog
+
+    Moderator->>CC: lock(targetUserId, reason)
+    CC->>CC: checkCan('lock', userid)
+    alt target is a trusted user and not forced
+        CC-->>Moderator: refuse, suggest /forcelock
+    else proceed
+        CC->>P: lock(targetUser, duration, null, ignoreAlts, publicReason)
+        P-->>CC: affected (Users locked, including alts)
+        CC->>CC: globalModlog(action, targetUser, reason)
+        CC->>R: modlog(entry)
+        R->>ML: write('global', entry)
+        CC->>CC: addGlobalModAction(message)
+        CC->>R: hideText(affected ids)
+        CC-->>Moderator: lockApplied(targetUserId)
+        CC-->>Moderator: lockAnnounced
+    end

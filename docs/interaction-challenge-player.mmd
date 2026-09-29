@@ -1,0 +1,29 @@
+%% Interaction diagram expanding SSD 2's system event: challenge(targetId, formatId)
+%% Traces server/chat-commands/core.ts:1516 -> server/ladders.ts:151 (Ladder.makeChallenge)
+%% Real classes only: CommandContext, Ladder, TeamValidatorAsync, Challenges
+%% (BattleReady/BattleChallenge omitted as separate lifelines - they're simple
+%% value objects created inline, shown as constructor calls rather than
+%% participants of their own, per server/ladders.ts:189,211)
+sequenceDiagram
+    actor Player
+    participant CC as :CommandContext
+    participant L as :Ladder
+    participant TV as :TeamValidatorAsync
+    participant CH as :Challenges
+
+    Note over L: precondition: Player isn't already challenging someone
+    Player->>CC: challenge(targetId, formatId)
+    CC->>L: makeChallenge(connection, targetUser)
+    L->>TV: validateTeam(team, options)
+    TV-->>L: ready (BattleReady)
+    L->>CH: search(user.id, targetUser.id)
+    alt target already sent a matching reverse challenge
+        CH-->>L: existingChall
+        L->>L: match([existingChall.ready, ready])
+    else no existing challenge
+        CH-->>L: null
+        L->>CH: add(new BattleChallenge(user.id, targetUser.id, ready))
+        L->>CH: send(user.id, targetUser.id, message)
+    end
+    L-->>CC: true
+    CC-->>Player: challengeSent
