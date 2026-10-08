@@ -480,8 +480,25 @@ class Ladder extends LadderStore {
 	}
 }
 
+/**
+ * One Ladder per format, so every caller shares the same instance (and the
+ * same `saving` lock in LadderStore) instead of each getting its own.
+ *
+ * Only exact format ids are cached. Custom-rule challenges and unrecognized
+ * strings come from user input, so they get a throwaway instance instead of
+ * growing the cache.
+ */
+const ladders = new Map<string, Ladder>();
+
 function getLadder(formatid: string) {
-	return new Ladder(formatid);
+	const format = Dex.formats.get(formatid);
+	if (!format.exists || format.id !== formatid) return new Ladder(formatid);
+	let ladder = ladders.get(format.id);
+	if (!ladder) {
+		ladder = new Ladder(format.id);
+		ladders.set(format.id, ladder);
+	}
+	return ladder;
 }
 
 const periodicMatchInterval = setInterval(

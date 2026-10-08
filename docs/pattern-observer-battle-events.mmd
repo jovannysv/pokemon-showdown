@@ -1,0 +1,66 @@
+classDiagram
+    direction LR
+
+    class Battle {
+        <<subject>>
+        +event: AnyObject
+        +eventDepth: number
+        +runEvent(eventid: string, target?: Pokemon | Pokemon[] | Side | Battle | null, source?: string | Pokemon | false | null, sourceEffect?: Effect | null, relayVar?: any, onEffect?: boolean, fastExit?: boolean) any
+        +priorityEvent(eventid: string, target: Pokemon | Side | Battle, source?: Pokemon | null, effect?: Effect, relayVar?: any, onEffect?: boolean) any
+        +findEventHandlers(target: Pokemon | Pokemon[] | Side | Battle, eventName: string, source?: Pokemon | null) EventListener[]
+        +findPokemonEventHandlers(pokemon: Pokemon, callbackName: string, getKey?: 'duration') EventListener[]
+        +resolvePriority(h: EventListenerWithoutPriority, callbackName: string) EventListener
+        +speedSort~T~(list: T[], comparator?: (a: T, b: T) => number) void
+    }
+
+    class EventListener {
+        <<subscription record>>
+        +effect: Effect
+        +callback?: Function
+        +state: EffectState | null
+        +effectHolder: Pokemon | Side | Field | Battle
+        +end: Function | null
+        +order: number | false
+        +priority: number
+        +subOrder: number
+    }
+
+    class EventMethods {
+        <<observer contract>>
+        +onDamagingHit?(damage: number, target: Pokemon, source: Pokemon, move: ActiveMove) void
+        +onModifyAtk?(relayVar: number, source: Pokemon, target: Pokemon, move: ActiveMove) number | void
+    }
+
+    class BasicEffect {
+        <<abstract>>
+        +id: ID
+        +name: string
+        +effectType: EffectType
+    }
+
+    class Ability
+    class Item
+    class Condition
+    class Species
+
+    class Pokemon {
+        +volatiles: EffectState[]
+        +statusState: EffectState
+        +abilityState: EffectState
+        +itemState: EffectState
+        +getAbility() Ability
+        +getItem() Item
+        +getStatus() Condition
+    }
+
+    Battle ..> EventListener : builds and notifies
+    EventListener --> BasicEffect : effect
+    BasicEffect <|-- Ability
+    BasicEffect <|-- Item
+    BasicEffect <|-- Condition
+    BasicEffect <|-- Species
+    EventMethods ..> Ability : handler signatures for
+    EventMethods ..> Item : handler signatures for
+    EventMethods ..> Condition : handler signatures for
+    Battle o--> Pokemon
+    Pokemon --> BasicEffect : holds subscribed effects

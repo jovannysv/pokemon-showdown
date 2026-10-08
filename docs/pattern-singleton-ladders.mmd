@@ -1,0 +1,22 @@
+sequenceDiagram
+    participant A as RoomBattle A
+    participant B as RoomBattle B
+    participant L as Ladders()
+    participant FS as gen9ou.tsv
+
+    Note over A,FS: BEFORE: new Ladder per call, so each has its own `saving` flag
+    A->>L: Ladders('gen9ou')
+    L-->>A: Ladder #1 (saving = false)
+    B->>L: Ladders('gen9ou')
+    L-->>B: Ladder #2 (saving = false)
+    A->>FS: #1.save(): saving was false, write
+    B->>FS: #2.save(): its own saving was false, write too
+    Note over FS: two write streams on the same file
+
+    Note over A,FS: AFTER: one Ladder per format id, so one shared `saving` flag
+    A->>L: Ladders('gen9ou')
+    L-->>A: Ladder #1
+    B->>L: Ladders('gen9ou')
+    L-->>B: Ladder #1 (same instance)
+    A->>FS: #1.save(): saving = true, write
+    B->>B: #1.save(): saving is true, return

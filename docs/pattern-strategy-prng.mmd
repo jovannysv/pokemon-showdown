@@ -1,0 +1,52 @@
+classDiagram
+    direction LR
+
+    class Battle {
+        +prng: PRNG
+        +prngSeed: PRNGSeed
+        +random(m?: number, n?: number) number
+        +randomChance(numerator: number, denominator: number) boolean
+        +sample~T~(items: readonly T[]) T
+    }
+
+    class PRNG {
+        <<context>>
+        +startingSeed: PRNGSeed
+        +rng: RNG
+        +setSeed(seed: PRNGSeed) void
+        +getSeed() PRNGSeed
+        +clone() PRNG
+        +random(from?: number, to?: number) number
+        +randomChance(numerator: number, denominator: number) boolean
+        +sample~T~(items: readonly T[]) T
+        +shuffle~T~(items: T[], start?: number, end?: number) void
+    }
+
+    class RNG {
+        <<interface>>
+        +getSeed() PRNGSeed
+        +next() number
+    }
+
+    class SodiumRNG {
+        +seed: Uint8Array
+        +NONCE: Uint8Array$
+        +setSeed(seed: SodiumRNGSeed) void
+        +getSeed() PRNGSeed
+        +next() number
+        +generateSeed() SodiumRNGSeed$
+    }
+
+    class Gen5RNG {
+        +seed: Gen5RNGSeed
+        +getSeed() PRNGSeed
+        +next() number
+        +nextFrame(seed: Gen5RNGSeed, framesToAdvance?: number) Gen5RNGSeed
+        +multiplyAdd(a: Gen5RNGSeed, b: Gen5RNGSeed, c: Gen5RNGSeed) Gen5RNGSeed
+        +generateSeed() Gen5RNGSeed$
+    }
+
+    Battle --> PRNG : prng
+    PRNG o--> RNG : rng
+    RNG <|.. SodiumRNG
+    RNG <|.. Gen5RNG

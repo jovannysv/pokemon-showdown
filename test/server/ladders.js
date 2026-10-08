@@ -39,6 +39,17 @@ describe('Matchmaker', () => {
 		this.p2 = destroyPlayer(this.p2);
 	});
 
+	it('should return the same Ladder instance for the same format', () => {
+		assert.equal(Ladders(FORMATID), Ladders(FORMATID));
+		assert.notEqual(Ladders(FORMATID), Ladders('gen8ou'));
+	});
+
+	it('should not cache custom-rule or unrecognized formats', () => {
+		const custom = `${FORMATID}@@@!Team Preview`;
+		assert.notEqual(Ladders(custom), Ladders(custom));
+		assert.notEqual(Ladders('notarealformat'), Ladders('notarealformat'));
+	});
+
 	it('should add a search', function () {
 		const s1 = addSearch(this.p1);
 		assert(Ladders.searches.has(FORMATID));

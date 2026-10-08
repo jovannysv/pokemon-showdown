@@ -1,0 +1,41 @@
+classDiagram
+    direction TB
+
+    class Teams {
+        <<factory>>
+        +getGenerator(format: Format | string, seed?: PRNG | PRNGSeed | null) RandomTeams
+        +generate(format: Format | string, options?: PlayerOptions | null) PokemonSet[]
+    }
+
+    class Battle {
+        <<client>>
+        +teamGenerator: RandomTeams | null
+        +getTeam(options: PlayerOptions) PokemonSet[]
+    }
+
+    class RandomTeams {
+        <<product>>
+        +format: Format
+        +prng: PRNG
+        +constructor(format: Format | string, prng: PRNG | PRNGSeed | null)
+        +setSeed(prng?: PRNG | PRNGSeed) void
+        +getTeam(options?: PlayerOptions | null) PokemonSet[]
+    }
+
+    class RandomGen8Teams
+    class RandomGen7Teams
+    class RandomGen6Teams
+    class RandomGen5Teams
+    class RandomCAPTeams
+    class RandomBabyTeams
+    class RandomFFATeams
+
+    Battle ..> Teams : getGenerator(format, seed)
+    Teams ..> RandomTeams : creates
+    RandomTeams <|-- RandomGen8Teams
+    RandomGen8Teams <|-- RandomGen7Teams
+    RandomGen7Teams <|-- RandomGen6Teams
+    RandomGen6Teams <|-- RandomGen5Teams
+    RandomTeams <|-- RandomCAPTeams
+    RandomTeams <|-- RandomBabyTeams
+    RandomTeams <|-- RandomFFATeams
