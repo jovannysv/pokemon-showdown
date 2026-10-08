@@ -35,6 +35,23 @@ describe('Simulator abstraction layer features', () => {
 				assert.equal(player, room.battle.playerTable[toID(player.name)]);
 			}
 		});
+
+		it('should report timer state through RoomBattleTimer', () => {
+			const packedTeam = 'Weavile||lifeorb||swordsdance,knockoff,iceshard,iciclecrash|Jolly|,252,,,4,252|||||';
+			p1 = makeUser();
+			p2 = makeUser();
+			room = Rooms.createBattle({
+				format: '',
+				players: [{ user: p1, team: packedTeam }, { user: p2, team: packedTeam }],
+			});
+			const timer = room.battle.timer;
+			assert.equal(timer.isOn(), false);
+			timer.start(p1);
+			assert.equal(timer.isOn(), true);
+			assert.equal(timer.listRequesters(), p1.id);
+			timer.stop(p1);
+			assert.equal(timer.isOn(), false);
+		});
 	});
 
 	describe('BattleStream', () => {

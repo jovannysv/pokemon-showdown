@@ -266,6 +266,13 @@ export class RoomBattleTimer {
 		this.timer = null;
 		return true;
 	}
+	isOn() {
+		return this.timerRequesters.size > 0;
+	}
+	/** Comma-separated userids of everyone who asked for the timer, for status messages. */
+	listRequesters() {
+		return [...this.timerRequesters].join(', ');
+	}
 	updateTurn() {
 		if (this.turn === null) {
 			// first request since timer was turned on

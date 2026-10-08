@@ -1392,23 +1392,22 @@ export const commands: Chat.ChatCommands = {
 		if (!room.game?.timer) {
 			throw new Chat.ErrorMessage(this.TL`You can only set the timer from inside a battle room.`);
 		}
-		const timer = room.game.timer as any;
-		if (!timer.timerRequesters) {
+		const timer = room.battle?.timer;
+		if (!timer) {
 			return this.sendReply(this.TL`This game's timer is managed by a different command.`);
 		}
 		if (!target) {
-			if (!timer.timerRequesters.size) {
+			if (!timer.isOn()) {
 				return this.sendReply(this.TL`The game timer is OFF.`);
 			}
-			const requester = [...timer.timerRequesters].join(', ');
-			return this.sendReply(this.TL`The game timer is ON (requested by ${requester})`);
+			return this.sendReply(this.TL`The game timer is ON (requested by ${timer.listRequesters()})`);
 		}
 		const force = user.can('timer', null, room);
 		if (!force && !room.game.playerTable[user.id]) {
 			throw new Chat.ErrorMessage(this.TL`Access denied.`);
 		}
 		if (this.meansNo(target) || target === 'stop') {
-			if (timer.timerRequesters.size) {
+			if (timer.isOn()) {
 				timer.stop(force ? undefined : user);
 				if (force) {
 					room.send(`|inactiveoff|${room.tr`Timer was turned off by staff. Please do not turn it back on until our staff say it's okay.`}`);

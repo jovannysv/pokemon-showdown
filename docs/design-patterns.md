@@ -1,6 +1,6 @@
 # Design Patterns
 
-_CSCI 360 — Individual assignment. This page is built up part by part. **Parts 1–3 are below**; Parts 4–5 follow in later commits._
+_CSCI 360 — Individual assignment. This page is built up part by part. **Parts 1–4 are below**; Part 5 follows in a later commit._
 
 Diagram sources live in `/docs` (`pattern-*.mmd`). The code snippets are trimmed copies of the real code, with file and line references.
 
@@ -460,4 +460,77 @@ Anything that needs per-format shared state now has one obvious home. A save que
 
 ---
 
-_Parts 4 and 5 (GRASP refactoring, GoF vs GRASP) are not written yet._
+## Part 4: A GRASP Refactoring: Low Coupling in the `/timer` command
+
+**Commit:** `A8-GRASP: Refactor RoomBattleTimer to apply Low Coupling`
+
+### The violation
+
+The `/timer` chat command ([server/chat-commands/core.ts](../server/chat-commands/core.ts), `timer`) is a controller. It should take the user's input and pass it on. Instead it reached through three objects (command → `room` → `game` → `timer`) into the timer's private `Set` of requesters, and needed an `as any` cast to do it. It then worked out the timer's state itself.
+
+### Before
+
+```ts
+// server/chat-commands/core.ts: timer()
+const timer = room.game.timer as any;               // type safety switched off
+if (!timer.timerRequesters) {                       // "is this a battle timer?"
+	return this.sendReply(this.TL`This game's timer is managed by a different command.`);
+}
+if (!target) {
+	if (!timer.timerRequesters.size) {              // "is it on?"
+		return this.sendReply(this.TL`The game timer is OFF.`);
+	}
+	const requester = [...timer.timerRequesters].join(', ');   // "who asked?"
+	return this.sendReply(this.TL`The game timer is ON (requested by ${requester})`);
+}
+// ...
+if (timer.timerRequesters.size) {                   // "is it on?" again
+	timer.stop(force ? undefined : user);
+```
+
+### After
+
+```ts
+// server/room-battle.ts: RoomBattleTimer answers questions about its own state
+isOn() {
+	return this.timerRequesters.size > 0;
+}
+/** Comma-separated userids of everyone who asked for the timer, for status messages. */
+listRequesters() {
+	return [...this.timerRequesters].join(', ');
+}
+
+// server/chat-commands/core.ts: timer() just asks
+const timer = room.battle?.timer;                   // typed RoomBattleTimer, no cast
+if (!timer) {
+	return this.sendReply(this.TL`This game's timer is managed by a different command.`);
+}
+if (!target) {
+	if (!timer.isOn()) {
+		return this.sendReply(this.TL`The game timer is OFF.`);
+	}
+	return this.sendReply(this.TL`The game timer is ON (requested by ${timer.listRequesters()})`);
+}
+// ...
+if (timer.isOn()) {
+	timer.stop(force ? undefined : user);
+```
+
+### What moved and why it's better
+
+The "is the timer on, and who turned it on" logic moved out of the `/timer` command and into `RoomBattleTimer`, the class that owns the `timerRequesters` set (Information Expert). The command now depends only on two small, typed methods instead of the timer's internal data structure (Low Coupling). That also removed the `as any` cast, so the compiler checks this code again. If the timer ever changes how it tracks requesters, for example from a `Set` to a map with timestamps, only `RoomBattleTimer` changes and the command keeps working.
+
+### Notes
+
+- `room.battle` is set by `RoomBattle`'s constructor, and `RoomBattle` is the only game whose timer has requesters. Other games, like Trivia and UNO, store a plain `NodeJS.Timeout`. So `room.battle?.timer` picks out exactly the same case the old `!timer.timerRequesters` check did, and other games still get "managed by a different command".
+- I left the base `RoomGame.timer` type alone. Narrowing it would change the `@ts-expect-error` lines in `rooms.ts`, which would make this commit bigger than one refactoring.
+
+### Verification
+
+- `npx tsc`: no errors. `npx eslint` on the three changed files: clean.
+- New test in `test/server/room-battle.js`: starting and stopping the timer is reflected in `isOn()` and `listRequesters()`.
+- Full mocha suite: **2370 passing, 74 pending** (2369 before; the +1 is the new test).
+
+---
+
+_Part 5 (GoF vs GRASP) is not written yet._
