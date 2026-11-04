@@ -54,6 +54,8 @@ const DISCONNECTION_BANK_TIME = 300;
 // time after a player disabling the timer before they can re-enable it
 const TIMER_COOLDOWN = 20 * SECONDS;
 const LOCKDOWN_PERIOD = 30 * 60 * 1000; // 30 minutes
+// rated battles that end by forfeit before this turn don't affect the ladder (anti win-trading)
+const MIN_RATED_FORFEIT_TURN = 3;
 
 export class RoomBattlePlayer extends RoomGamePlayer<RoomBattle> {
 	readonly slot: SideID;
@@ -853,6 +855,10 @@ export class RoomBattle extends RoomGame<RoomBattlePlayer> {
 			p1score = 0;
 		}
 		Chat.runHandlers('onBattleEnd', this, winnerid, this.players.map(p => p.id));
+		if (this.room.rated && this.endType === 'forfeit' && this.turn < MIN_RATED_FORFEIT_TURN) {
+			this.room.rated = 0;
+			this.room.add(`|-message|This battle ended by forfeit before turn ${MIN_RATED_FORFEIT_TURN}, so it will not affect ladder ratings.`);
+		}
 		if (this.room.rated && !this.options.isBestOfSubBattle) {
 			void this.updateLadder(p1score, winnerid);
 		} else if (Config.logchallenges) {

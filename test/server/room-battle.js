@@ -52,6 +52,41 @@ describe('Simulator abstraction layer features', () => {
 			timer.stop(p1);
 			assert.equal(timer.isOn(), false);
 		});
+
+		it('should not update the ladder for rated battles forfeited in the first turns', () => {
+			const packedTeam = 'Weavile||lifeorb||swordsdance,knockoff,iceshard,iciclecrash|Jolly|,252,,,4,252|||||';
+			p1 = makeUser();
+			p2 = makeUser();
+			room = Rooms.createBattle({
+				format: '',
+				players: [{ user: p1, team: packedTeam }, { user: p2, team: packedTeam }],
+				rated: 1000,
+			});
+			let ladderUpdates = 0;
+			room.battle.updateLadder = () => { ladderUpdates++; };
+			room.battle.endType = 'forfeit';
+			room.battle.turn = 1;
+			room.battle.end(p1.name);
+			assert.equal(ladderUpdates, 0);
+			assert.equal(room.rated, 0);
+		});
+
+		it('should still update the ladder for rated battles that were played out', () => {
+			const packedTeam = 'Weavile||lifeorb||swordsdance,knockoff,iceshard,iciclecrash|Jolly|,252,,,4,252|||||';
+			p1 = makeUser();
+			p2 = makeUser();
+			room = Rooms.createBattle({
+				format: '',
+				players: [{ user: p1, team: packedTeam }, { user: p2, team: packedTeam }],
+				rated: 1000,
+			});
+			let ladderUpdates = 0;
+			room.battle.updateLadder = () => { ladderUpdates++; };
+			room.battle.endType = 'forfeit';
+			room.battle.turn = 10;
+			room.battle.end(p1.name);
+			assert.equal(ladderUpdates, 1);
+		});
 	});
 
 	describe('BattleStream', () => {
