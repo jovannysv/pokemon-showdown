@@ -1,0 +1,80 @@
+@startuml Pokemon-Showdown-Misuse-Cases
+' Extends docs/use-case-diagram.puml (A1b) with attacker behaviour.
+' Misuse cases are drawn as black ellipses; attackers sit outside the system boundary.
+left to right direction
+
+skinparam usecase {
+  BackgroundColor<<misuse>> Black
+  FontColor<<misuse>> White
+  BorderColor<<misuse>> Black
+  BackgroundColor<<control>> #DDEEFF
+  BorderColor<<control>> #336699
+}
+skinparam actor {
+  BackgroundColor<<attacker>> Black
+}
+
+' ---- Legitimate actors (from A1b) ----
+actor Player
+actor "Staff Moderator" as Moderator
+actor "Login Server" as LoginServer
+actor "Staff Auditor" as Auditor
+Moderator --|> Player
+
+' ---- Attackers (outside the system boundary) ----
+actor "Ladder Cheater\n(rating farmer)" as Cheater <<attacker>>
+actor "Locked User\n(ban evader)" as Evader <<attacker>>
+actor "External Attacker\n(account thief)" as Thief <<attacker>>
+
+rectangle "Pokémon Showdown Server" {
+  ' ---- Normal use cases (from A1b) ----
+  usecase "Play a Ranked Ladder Battle" as UC1
+  usecase "Challenge a Specific Player\nto a Battle" as UC2
+  usecase "Lock a Rule-Breaking User" as UC3
+
+  ' ---- Misuse cases ----
+  usecase "Manipulate Ladder Rating\n(Win-Trade with Alts)" as MUC1 <<misuse>>
+  usecase "Escalate Privileges to\nServer Console (/eval)" as MUC2 <<misuse>>
+  usecase "Evade a Lock\n(alt account + new IP)" as MUC3 <<misuse>>
+  usecase "Impersonate Another User\n(replay login assertion)" as MUC4 <<misuse>>
+
+  ' ---- Controls (security use cases that mitigate) ----
+  usecase "Enforce Matchmaking Constraints\n(ladders.ts matchmakingOK)" as C1 <<control>>
+  usecase "Check Console Whitelist\n(users.ts hasConsoleAccess)" as C2 <<control>>
+  usecase "Enforce IP-based Punishments\n(punishments.ts checkIp)" as C3 <<control>>
+  usecase "Verify Signed Login Assertion\n(users.ts validateToken)" as C4 <<control>>
+}
+
+' ---- Normal use ----
+Player --> UC1
+Player --> UC2
+LoginServer --> UC1
+Moderator --> UC3
+Auditor ..> UC3 : reviews modlog entry
+
+' ---- Attackers perform misuse cases ----
+Cheater --> MUC1
+Evader --> MUC3
+Thief --> MUC4
+Thief --> MUC2
+
+' ---- Misuse cases threaten use cases ----
+MUC1 ..> UC1 : <<threatens>>
+MUC2 ..> UC3 : <<threatens>>
+MUC3 ..> UC3 : <<threatens>>
+MUC4 ..> UC1 : <<threatens>>
+MUC4 ..> UC2 : <<threatens>>
+MUC4 ..> MUC2 : <<enables>>
+
+' ---- Controls mitigate misuse cases ----
+C1 ..> MUC1 : <<mitigates>>
+C2 ..> MUC2 : <<mitigates>>
+C3 ..> MUC3 : <<mitigates>>
+C4 ..> MUC4 : <<mitigates>>
+
+' ---- Normal use cases include the controls ----
+UC1 ..> C1 : <<include>>
+UC1 ..> C4 : <<include>>
+UC2 ..> C4 : <<include>>
+UC3 ..> C3 : <<include>>
+@enduml

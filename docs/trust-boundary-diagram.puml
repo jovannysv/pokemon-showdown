@@ -1,0 +1,108 @@
+@startuml Pokemon-Showdown-Trust-Boundaries
+' Trust boundary diagram for the Pokémon Showdown game server.
+' Red dashed boxes are trust boundaries. Every numbered arrow is a data flow
+' that crosses at least one boundary; the numbers match the crossing table
+' in docs/security-analysis.md (Part 3).
+left to right direction
+skinparam shadowing false
+skinparam defaultTextAlignment center
+skinparam rectangle<<boundary>> {
+  BorderColor #CC0000
+  BorderStyle dashed
+  BorderThickness 2
+  FontColor #CC0000
+  BackgroundColor transparent
+}
+skinparam ArrowFontSize 11
+
+' =================== Untrusted: the public internet ===================
+rectangle "TB1: Public Internet — UNTRUSTED" <<boundary>> {
+  actor "Player / Attacker\n(browser client)" as Client
+  component "GitHub\n(webhook sender)" as GitHub
+}
+
+' =================== Operator-run edge ===================
+rectangle "TB2: Edge (operator-run, optional) — PARTIALLY TRUSTED" <<boundary>> {
+  component "Reverse proxy\n(nginx / Cloudflare)\nConfig.proxyip" as Proxy
+}
+
+' =================== Game server host ===================
+rectangle "Game server host" {
+
+  rectangle "TB3: Sockets worker processes — TRUSTED" <<boundary>> {
+    component "SockJS / ws server\nserver/sockets.ts" as Sockets
+    component "Static HTTP server\nlib/static-server.ts" as Static
+  }
+
+  rectangle "TB4: Main server process — TRUSTED" <<boundary>> {
+    rectangle "TB5a: Unauthenticated path (guest) — UNTRUSTED" <<boundary>> {
+      component "Connection + socketReceive\nserver/users.ts" as Recv
+      component "Chat parser / throttle\nserver/chat.ts" as Chat
+    }
+    rectangle "TB5b: Authenticated path (registered user) — PARTIALLY TRUSTED" <<boundary>> {
+      component "validateToken / handleRename\nserver/users.ts" as Auth
+      component "RoomBattle / Ladder\nserver/room-battle.ts\nserver/ladders*.ts" as Battle
+    }
+    rectangle "TB5c: Privileged path (staff / console) — TRUSTED" <<boundary>> {
+      component "Auth.hasPermission\nhasConsoleAccess\nmoderation + /eval, /bash" as Priv
+    }
+    component "GitHub webhook listener\nchat-plugins/github.ts\n(githubhook)" as Hook
+    component "LoginServer client\nserver/loginserver.ts" as LSClient
+    component "IPTools (DNSBL / rDNS)\nserver/ip-tools.ts" as IPT
+  }
+
+  rectangle "TB6: Child worker processes — TRUSTED" <<boundary>> {
+    component "Simulator\nsim/ via RoomBattleStream" as Sim
+    component "Team validator\nteam-validator-async.ts" as TV
+    component "Signature verifier\nserver/verifier.ts" as Ver
+  }
+
+  rectangle "TB7: Data stores (local disk) — TRUSTED" <<boundary>> {
+    database "SQLite\ndatabases/*.db\n(chat-db, friends, modlog)" as DB
+    folder "logs/, roomlogs\nmodlog files" as Logs
+    folder "config/\nconfig.js, usergroups.csv\n(hot-reloaded)" as Cfg
+  }
+}
+
+' =================== Third-party services ===================
+rectangle "TB8: Login server (third party, HTTP) — PARTIALLY TRUSTED" <<boundary>> {
+  component "play.pokemonshowdown.com\naction.php" as LS
+}
+rectangle "TB9: DNS / DNSBL resolvers — UNTRUSTED" <<boundary>> {
+  component "DNS resolvers\n+ DNS blocklists" as DNS
+}
+
+' =================== Supply chain / CI ===================
+rectangle "TB10: CI pipeline (GitHub Actions) — TRUSTED" <<boundary>> {
+  component "test.yml / publish.yml\nnpm ci, build-npm, npm publish" as CI
+}
+rectangle "TB11: npm registry — UNTRUSTED" <<boundary>> {
+  component "registry.npmjs.org" as NPM
+}
+actor "Maintainer\n(push to master)" as Dev
+
+' =================== Numbered crossings ===================
+Client --> Proxy : 1: WebSocket frames\n(chat, /cmds, choices, teams)
+Proxy --> Sockets : 2: frames + X-Forwarded-For
+Client --> Static : 3: HTTP GET path\n(/custom.css, /avatars/, /)
+Sockets --> Recv : 4: IPC "*id ip", "<id msg"
+Recv --> Chat : 5: chat line / command
+Client ..> LS : (login: password -> signed assertion)
+Chat --> Auth : 6: /trn name,0,assertion
+Auth --> Ver : 7: data + signature
+Battle --> Priv : 8: privileged command\n(permission check)
+Battle --> TV : 9: packed team string
+Battle --> Sim : 10: ">p1 move 1" choice
+Sim --> Battle : 11: battle protocol / log
+LSClient --> LS : 12: POST serverid + servertoken\n+ actions (ladderupdate, mmr, prepreplay)
+LS --> LSClient : 13: JSON responses\n(ratings, mmr, errors)
+GitHub --> Hook : 14: push / PR JSON payload
+IPT --> DNS : 15a: DNSBL / rDNS query
+DNS --> IPT : 15b: blocklist / hostname answer
+Battle --> DB : 16: SQL (prepared statements)
+Priv --> Logs : 17: modlog / roomlog writes
+Cfg --> Priv : 18: config.js + usergroups.csv load
+Dev --> CI : 19: commit to master
+CI --> NPM : 20: npm publish (OIDC id-token)
+NPM --> CI : 21: npm ci dependencies
+@enduml
