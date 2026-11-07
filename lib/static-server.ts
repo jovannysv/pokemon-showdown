@@ -190,10 +190,7 @@ export class StaticServer {
 	): Promise<Result> {
 		pathname = this.resolve(pathname);
 
-		// Make sure we're not trying to access a
-		// file outside of the root.
-		const rootDir = this.root.endsWith(path.sep) ? this.root : this.root + path.sep;
-		if (pathname !== this.root && !pathname.startsWith(rootDir)) {
+		if (!this.isInsideRoot(pathname)) {
 			// Forbidden
 			return this.getResult(403);
 		}
@@ -229,6 +226,15 @@ export class StaticServer {
 
 	resolve(pathname: string) {
 		return path.resolve(path.join(this.root, pathname));
+	}
+
+	/**
+	 * Whether a path from `resolve` is the root or inside it. A plain
+	 * `startsWith(root)` would also accept siblings like `root-other/`.
+	 */
+	isInsideRoot(resolved: string) {
+		const rootDir = this.root.endsWith(path.sep) ? this.root : this.root + path.sep;
+		return resolved === this.root || resolved.startsWith(rootDir);
 	}
 
 	async serve(req: http.IncomingMessage, res: http.ServerResponse, errorCallback?: ErrorCallback): Promise<Result> {
