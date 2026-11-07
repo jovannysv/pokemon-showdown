@@ -192,7 +192,8 @@ export class StaticServer {
 
 		// Make sure we're not trying to access a
 		// file outside of the root.
-		if (!pathname.startsWith(this.root)) {
+		const rootDir = this.root.endsWith(path.sep) ? this.root : this.root + path.sep;
+		if (pathname !== this.root && !pathname.startsWith(rootDir)) {
 			// Forbidden
 			return this.getResult(403);
 		}
