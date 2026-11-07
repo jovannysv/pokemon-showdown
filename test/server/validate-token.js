@@ -9,6 +9,7 @@
 const assert = require('assert').strict;
 const crypto = require('crypto');
 
+const { Monitor } = require('../../dist/server/monitor');
 const { makeUser, destroyUser } = require('../users-utils');
 
 describe('User#validateToken', () => {

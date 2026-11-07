@@ -36,7 +36,9 @@ test('mocha suite', { timeout: 30 * 60 * 1000 }, async () => {
 		}
 	}
 	await mocha.loadFilesAsync();
-	const failures = await new Promise(resolve => mocha.run(resolve));
+	const failures = await new Promise(resolve => {
+		mocha.run(resolve);
+	});
 	// equivalent of `exit: true` in .mocharc.json: the suite leaves timers and sockets open,
 	// so force the process to end once node:test has had time to report the result
 	setTimeout(() => process.exit(), 2000);
