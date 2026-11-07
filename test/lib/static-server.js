@@ -47,6 +47,9 @@ describe('StaticServer', () => {
 		fs.writeFileSync(path.join(root, 'page.html'), '<p>page</p>');
 		fs.writeFileSync(path.join(root, 'docs', 'index.html'), '<p>docs index</p>');
 		fs.writeFileSync(path.join(tmp, 'outside.txt'), 'outside the root');
+		// a sibling of the root whose name starts with the root's name
+		fs.mkdirSync(path.join(tmp, 'public-secret'));
+		fs.writeFileSync(path.join(tmp, 'public-secret', 'secret.txt'), 'not for the web');
 	});
 	after(() => {
 		fs.rmSync(tmp, { recursive: true, force: true });
@@ -131,6 +134,12 @@ describe('StaticServer', () => {
 		const { result, res } = await get(new StaticServer(root), '/..%2Foutside.txt');
 		assert.equal(result.status, 403);
 		assert.equal(res.body(), '403 Forbidden');
+	});
+
+	it('givenASiblingDirectorySharingTheRootsNamePrefix_whenReachedWithAnEncodedSlash_returns403', async () => {
+		const { result, res } = await get(new StaticServer(root), '/..%2Fpublic-secret%2Fsecret.txt');
+		assert.equal(result.status, 403);
+		assert.notEqual(res.body(), 'not for the web');
 	});
 
 	it('givenAnErrorCallbackReturningTrue_whenTheFileIsMissing_leavesTheResponseUntouched', async () => {
