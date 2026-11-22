@@ -294,11 +294,13 @@ represented by a space), and the rest of the string being their username.
 `|tournament|create|FORMAT|GENERATOR|PLAYERCAP`
 
 > `FORMAT` is the name of the format in which each battle will be played.
-> `GENERATOR` is either `Elimination` or `Round Robin` and describes the
-> type of bracket that will be used. `Elimination` includes a prefix
+> `GENERATOR` is either `Elimination`, `Round Robin` or `Swiss` and describes
+> the type of bracket that will be used. `Elimination` includes a prefix
 > that denotes the number of times a player can lose before being
 > eliminated (`Single`, `Double`, etc.). `Round Robin` includes the
-> prefix `Double` if every matchup will battle twice.
+> prefix `Double` if every matchup will battle twice. `Swiss` includes the
+> number of rounds as a prefix (`5-Round Swiss`) if it was chosen when the
+> tournament was created.
 > `PLAYERCAP` is a number representing the maximum amount of players
 > that can join the tournament or `0` if no cap was specified.
 

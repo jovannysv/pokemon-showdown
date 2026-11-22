@@ -238,5 +238,6 @@ export const translations: TranslationCatalog = {
 	"You are not blocking friend requests.": null,
 	"You are currently allowing friend notifications.": null,
 	"Your friend notifications are disabled.": null,
+	"- /tour create <em>format</em>, swiss: create a new Swiss tournament in the current room.": null,
 
 };

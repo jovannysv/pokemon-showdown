@@ -2074,6 +2074,7 @@ export const commands: Chat.ChatCommands = {
 				this.TL`Tournament Help:`,
 				this.TL`- /tour create <em>format</em>, elimination: create a new single elimination tournament in the current room.`,
 				this.TL`- /tour create <em>format</em>, roundrobin: create a new round robin tournament in the current room.`,
+				this.TL`- /tour create <em>format</em>, swiss: create a new Swiss tournament in the current room.`,
 				this.TL`- /tour end: forcibly end the tournament in the current room`,
 				this.TL`- /tour start: start the tournament in the current room`,
 				this.TL`- /tour banlist [pokemon], [talent], [...]: ban moves, abilities, Pokémon or items from being used in a tournament (it must be created first)`,

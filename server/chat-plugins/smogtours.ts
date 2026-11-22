@@ -369,6 +369,7 @@ function instantTournaments() {
 		const name = Dex.formats.get(tour.name).exists ? Dex.formats.get(tour.name).name : tour.name;
 		const icon = tour.generator.name === 'Round Robin' ? '<i class="fa fa-th"></i>' :
 			tour.generator.name === 'Single Elimination' ? '<i class="fa fa-share-alt"></i>' :
+			tour.generator.name.endsWith('Swiss') ? '<i class="fa fa-list-ol"></i>' :
 			'<i class="fa fa-share-alt"></i><i class="fa fa-share-alt"></i>';
 		const plural = tour.players.length !== 1 ? 's' : '';
 		return `<li><a href="/${tour.room.roomid}" class="blocklink">&laquo;<strong>${tour.room.roomid}</strong>&raquo;<small style="float:right">(${tour.players.length} player${plural})</small><br />${icon} <small>${Utils.escapeHTML(name)} ${tour.generator.name}</small></a></li>`;

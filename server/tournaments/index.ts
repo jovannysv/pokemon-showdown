@@ -1,5 +1,6 @@
 import { Elimination } from './generator-elimination';
 import { RoundRobin } from './generator-round-robin';
+import { Swiss } from './generator-swiss';
 import { Utils } from '../../lib';
 import { PRNG } from '../../sim/prng';
 import type { BattleReady } from '../ladders-challenges';
@@ -20,7 +21,7 @@ export interface TournamentRoomSettings {
 	blockRecents?: boolean;
 }
 
-type Generator = RoundRobin | Elimination;
+type Generator = RoundRobin | Elimination | Swiss;
 
 const BRACKET_MINIMUM_UPDATE_INTERVAL = 2 * 1000;
 const AUTO_DISQUALIFY_WARNING_TIMEOUT = 30 * 1000;
@@ -39,6 +40,7 @@ const TournamentGenerators = {
 	__proto__: null,
 	roundrobin: RoundRobin,
 	elimination: Elimination,
+	swiss: Swiss,
 };
 
 function usersToNames(users: TournamentPlayer[]) {
@@ -1089,7 +1091,7 @@ function getGenerator(generator: string | undefined) {
 	case 'elim': generator = 'elimination'; break;
 	case 'rr': generator = 'roundrobin'; break;
 	}
-	return TournamentGenerators[generator as 'elimination' | 'roundrobin'];
+	return TournamentGenerators[generator as 'elimination' | 'roundrobin' | 'swiss'];
 }
 
 function createTournamentGenerator(
@@ -1210,6 +1212,7 @@ const commands: Chat.ChatCommands = {
 				const name = Dex.formats.get(tour.name).exists ? Dex.formats.get(tour.name).name : tour.name;
 				const icon = tour.generator.name === 'Round Robin' ? '<i class="fa fa-th"></i>' :
 					tour.generator.name === 'Single Elimination' ? '<i class="fa fa-share-alt"></i>' :
+					tour.generator.name.endsWith('Swiss') ? '<i class="fa fa-list-ol"></i>' :
 					'<i class="fa fa-share-alt"></i><i class="fa fa-share-alt"></i>';
 				const plural = tour.players.length !== 1 ? 's' : '';
 				return `<li><a href="/${tour.room.roomid}" class="blocklink">&laquo;<strong>${tour.room.roomid}</strong>&raquo;<small style="float:right">(${tour.players.length} player${plural})</small><br />${icon} <small>${Utils.escapeHTML(name)} ${tour.generator.name}</small></a></li>`;
@@ -2223,6 +2226,7 @@ const commands: Chat.ChatCommands = {
 			`- ready: Readies your team for your next battle, even if no match is available yet.<br />` +
 			`- cancelready/unready: Cancels readiness before your battle starts.<br />` +
 			`- create/new &lt;format>, &lt;type>, [, &lt;player cap>, &lt;rounds>, &lt;custom name>]: Creates a new tournament in the current room.<br />` +
+			`- Types: elimination, roundrobin, swiss. For swiss, &lt;rounds> is the number of rounds (automatic if omitted).<br />` +
 			`- rules &lt;comma-separated arguments>: Sets the custom rules for the tournament before it has started. <a href="view-battlerules">Custom rules help/list</a><br />` +
 			`- end/stop/delete: Forcibly ends the tournament in the current room.<br />` +
 			`- begin/start: Starts the tournament in the current room.<br /><br />` +
