@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Accepted for implementation (design written before any feature code) |
+| **Status** | Implemented. Written before any feature code, then revised after building (§12) |
 | **Date** | 2026-11-21 |
 | **Issue** | [smogon/pokemon-showdown#2205](https://github.com/smogon/pokemon-showdown/issues/2205): "Implement Best of 3 and/or Swiss Rounds for Room Tours" |
 | **Base** | `upstream/master` at `f1040ecb5` |
@@ -182,7 +182,7 @@ This would be the cleaner design (see §6, Protected Variations). I rejected it 
 | Dutch system (FIDE) | Split each score group into top and bottom halves and pair 1 vs ½n+1, … with "floaters" between groups. | Rejected. Much of the Dutch rule set is about allocating colours (white/black), which has no equivalent in Pokémon. The rest adds complexity with no visible benefit at room-tour sizes. |
 | Maximum-weight perfect matching (Edmonds' blossom) | Weight each possible pair by score difference and find the optimal overall pairing. | Rejected. It is optimal but needs several hundred lines of graph code for a problem where the greedy-with-backtracking answer is almost always the same. A reviewer cannot check it in reasonable time. |
 
-**Fallback.** Backtracking is exponential in the worst case, and the pairing runs on the main server process, so it gets a fixed **step budget**. If the budget is used up, or no rematch-free pairing exists at all, the generator pairs adjacent players in the standings and allows rematches. This always succeeds in linear time (see §8).
+**Fallback.** Backtracking is exponential in the worst case, and the pairing runs on the main server process, so it gets a fixed **step budget** (10,000 candidate checks per round). If the budget is used up, or no rematch-free pairing exists at all, the generator falls back to a single greedy pass. Going down the standings, it gives each player the highest-ranked unpaired player they have not met, or the next player in the standings if they have met everyone left. This always succeeds in polynomial time (*revised; see §12, R2*).
 
 **Byes.** If the number of active players is odd, the bye is chosen *before* pairing: the lowest-ranked active player who has not had a bye (or the lowest-ranked player, if everyone has had one). A bye counts as a won match for points, but not for the Buchholz tie-break (there is no opponent).
 
@@ -212,13 +212,13 @@ Known cost: a crosstable for *n* players is *n × n*, like Round Robin's. For la
 | File | Change | Why |
 |---|---|---|
 | `server/tournaments/index.ts` | Import `Swiss`, add it to the `Generator` union and to `TournamentGenerators` | Registration: the factory looks generators up by name. |
-| `server/tournaments/index.ts` | `Tournament.updateFor`: the generic `else` branch (`isJoined = true`) becomes "joined unless disqualified or eliminated" | Without this, disqualified Swiss players would still be told they are joined. The branch is unreachable today (every current generator name contains "Elimination" or "Round Robin"), so changing it cannot affect them. |
-| `server/tournaments/index.ts` | `/tour` list icon, `/tour help` text | Display: icon and help are chosen per generator. |
-| `server/chat-plugins/smogtours.ts` | Same icon choice | A **copy** of the same `renderLink` function exists here. |
+| ~~`server/tournaments/index.ts`~~ | ~~`Tournament.updateFor`: the generic `else` branch becomes "joined unless disqualified or eliminated"~~ | **Dropped during the build: it was not needed** (*see §12, R1*). |
+| `server/tournaments/index.ts` | `/tour` list icon (`fa-list-ol`, chosen by `generator.name.endsWith('Swiss')`), one `/tour help` line listing the types | Display: icon and help are chosen per generator. |
+| `server/chat-plugins/smogtours.ts` | The same icon line, written identically | A **copy** of the same `renderLink` function exists here. The two copies are kept identical so they can later be merged mechanically (*see §12, R3*). |
 | `server/chat-commands/info.ts` + `translations/` | One new `/tournamenthelp` line | Help is translatable, so the new string must also appear in the template catalogs. |
 | `PROTOCOL.md` | Document `Swiss` as a `GENERATOR` value | Bots and third-party clients parse `|tournament|create|`. |
 
-**What this says about coupling.** Adding a generator *should* be a one-line registration, because `Tournament` already delegates through a common set of methods. In practice, `Tournament` and its neighbours identify generators by **display name** in five places (`updateFor`, `onBattleWin`'s replay auto-save, and two copies of the list-icon code) and by **concrete class** in two more (`instanceof RoundRobin`). That is control coupling through a string meant for humans: renaming "Round Robin" to "Round-Robin" would silently change behaviour. The duplicate `renderLink` in `smogtours.ts` is a second smell, since every new generator has to be added in two places. This change does **not** make either problem worse in kind. It adds Swiss to the same lookups the way the existing generators are handled, and its one behavioural change (`updateFor`) replaces a hard-coded `true` with a rule that works for any generator. But it does not fix them either (Option C, §4.1).
+**What this says about coupling.** Adding a generator *should* be a one-line registration, because `Tournament` already delegates through a common set of methods. In practice, `Tournament` and its neighbours identify generators by **display name** in four places (`updateFor`, `onBattleWin`'s replay auto-save, and two copies of the list-icon code) and by **concrete class** in two more (`instanceof RoundRobin`). That is control coupling through a string meant for humans: renaming "Round Robin" to "Round-Robin" would silently change behaviour. The duplicate `renderLink` in `smogtours.ts` is a second smell, since every new generator has to be added in two places. This change does **not** make either problem worse in kind. It adds Swiss to the same lookups the way the existing generators are handled, and in the end it changes no existing behaviour at all (*see §12, R1*). But it does not fix them either (Option C, §4.1). In total, the change to existing server code is 4 added and 2 edited lines in `index.ts`, 1 added line in `smogtours.ts`, and 1 added help string in `info.ts`.
 
 ---
 
@@ -239,7 +239,7 @@ Known cost: a crosstable for *n* players is *n × n*, like Round Robin's. For la
 These use the vocabulary and numbering from my A5 security analysis (`docs/security-analysis.md` on my fork's `master`).
 
 - **Entry point.** No new entry point. The feature is reached only through the existing `/tour create` and `/tour settype` commands. They are **crossing 5** (raw message → chat layer) followed by **crossing 8** (registered user → staff-only command, enforced by `checkCan('tournaments')`). The only new input is the `<rounds>` argument, which is validated as a positive integer before a generator is built. Player names in bracket data are sent as JSON and rendered as text by the client, as they already are for Round Robin. The `/tour` list icon is a static string.
-- **Asset: availability of the main process (TB4).** Pairing runs synchronously inside the main server process, which holds every room and user. An unbounded backtracking search on a large tour with many rounds would be an **algorithmic-complexity denial of service**, triggered by a staff command (TB5c), or by enough players joining an uncapped tour (TB5b). Mitigation: a hard step budget, after which the generator uses the linear-time fallback pairing (§4.2). The test suite includes a case that forces the fallback and checks that it terminates.
+- **Asset: availability of the main process (TB4).** Pairing runs synchronously inside the main server process, which holds every room and user. An unbounded backtracking search on a large tour with many rounds would be an **algorithmic-complexity denial of service**, triggered by a staff command (TB5c), or by enough players joining an uncapped tour (TB5b). Mitigation: a hard step budget, after which the generator uses the greedy fallback pairing (§4.2). The test suite includes a case that forces the fallback and checks that it terminates. This risk turned out to be real, not theoretical (*see §12, R2*).
 - **Asset: tournament and ladder integrity (R3 / MUC1).** Swiss adds a known collusion pattern: two players in a winning position agree to a draw. Draws are already possible in Round Robin tours, and tour battles are only ladder-rated when the operator sets `Config.ratedtours` (default `false`, `config/config-example.js:476`). The feature therefore adds no new way to move ladder ratings. Anti-collusion rules for prizes are a room moderation matter.
 - **Trust boundaries.** No boundary is crossed that was not already crossed. Nothing new is persisted (tournaments live in memory only, TB7 is untouched), and nothing new is sent to the login server (TB8).
 
@@ -248,7 +248,7 @@ These use the vocabulary and numbering from my A5 security analysis (`docs/secur
 ## 8. Backward compatibility
 
 - **Existing users and rooms.** No setting, command, or default changes. Rooms that never type `swiss` see no difference. `room.settings.tournaments` gains no new fields, so saved room settings need no migration.
-- **Existing callers and generators.** `Elimination` and `RoundRobin` are not modified. The `updateFor` change only affects generators whose name contains neither "Elimination" nor "Round Robin", and before this change no such generator existed.
+- **Existing callers and generators.** `Elimination`, `RoundRobin` and every method of `Tournament` are unchanged. The only edits to existing server code add `Swiss` to a type union, the generator table, an icon choice, and help text.
 - **Protocol.** `|tournament|create|FORMAT|GENERATOR|PLAYERCAP` and `update` JSON can now carry `Swiss` or `N-Round Swiss` as `GENERATOR`. The official client shows unknown generator names verbatim (`ChatTournament.generatorName` falls back to the raw string), so current clients display "Swiss" without an update. Bracket data uses only the existing `tree` and `table` types. **Risk:** third-party bots that `switch` on the generator name without a default case may mishandle Swiss tours. This is documented in `PROTOCOL.md`.
 - **Existing data.** None. Tournaments are not persisted across restarts.
 
@@ -258,7 +258,7 @@ These use the vocabulary and numbering from my A5 security analysis (`docs/secur
 
 1. `Docs: Add design note for Swiss tournaments` (this file, before any code).
 2. `Tournaments: Add Swiss generator`: `generator-swiss.ts` plus unit tests. The tests are written first.
-3. `Tournaments: Support Swiss tournaments in /tour commands`: registration, the `updateFor` fallback, icons, help text, translations, `PROTOCOL.md`, and the system-level test. The system test is written first and run red before the registration exists.
+3. `Tournaments: Support Swiss tournaments in /tour commands`: registration, icons, help text, translations, `PROTOCOL.md`, and the system-level test. The system test is written first and run red before the registration exists.
 4. `Docs: …`: revise this note with what changed during the build, and add `docs/PR.md`.
 
 ---
@@ -284,4 +284,47 @@ These use the vocabulary and numbering from my A5 security analysis (`docs/secur
 
 ## 12. Revisions after building
 
-*(To be filled in after implementation: anything the build proved wrong in this note.)*
+The sections above were written before the feature. Where the build proved them wrong, they now carry a *revised* marker, and the original claim is kept here word for word.
+
+### R1. The `updateFor` change was unnecessary, so it was dropped
+
+**Original claim (§5):** "`Tournament.updateFor`: the generic `else` branch (`isJoined = true`) becomes 'joined unless disqualified or eliminated'. Without this, disqualified Swiss players would still be told they are joined."
+
+**What happened.** I made the change and wrote a system test for it ("tells a disqualified player that they have left the tournament"). The test passed. I then reverted *only* that line, and **the test still passed**. The reason: `Swiss.disqualifyUser` calls `game.setPlayerUser(player, null)`, as `Elimination` does. That removes the player from `Tournament.playerTable`, so `updateFor` finds no player and reports `isJoined: false` without ever reaching the `else` branch. The branch is only reached for players who are still active, and for those `true` is correct.
+
+**Decision.** The change was removed. Existing `Tournament` behaviour is now completely unchanged, which makes the diff easier to review and AC10 easier to trust. The test stayed in as a regression test for the behaviour.
+
+**What I learned.** "This existing code must change" is a claim, and it needs evidence. A test that passes both with and without a change does not justify that change. Checking this by reverting the change (a one-line mutation) was cheap and caught a design error I would otherwise have shipped and defended.
+
+### R2. The step budget is necessary, and the fallback is not "linear"
+
+**Original claim (§4.2):** "the generator pairs adjacent players in the standings and allows rematches. This always succeeds in linear time."
+
+**What happened.** The fallback I built is better than adjacent pairing: one greedy pass that still prefers an opponent the player has not met. It costs O(*n*²) checks plus the opponent lookups, not linear time, and §4.2 now says so.
+
+The budget itself was tested by removing it from the source (`if (++steps > MAX…) return null` → `++steps`) and running the unit tests. The 64-player, 63-round test **did not finish within 10 minutes** and had to be killed. Because the search is synchronous, it blocked the event loop, so even mocha's 10-second test timeout could not fire. On a live server that is every room and battle frozen. The availability threat in §7 was real.
+
+Measured with the budget in place (same machine, Node 24):
+
+| Scenario | Rounds that used the fallback | Rematches | Time |
+|---|---|---|---|
+| 8 to 512 players, default rounds, 20 random seeds each (140 tours) | 0 | 0 | at most 279 ms of pairing for a whole 512-player, 9-round tour |
+| 64 players forced to 63 rounds (a full round robin's worth) | 44 of 63 | 242 | 201 ms in total |
+
+**What I learned.** At normal sizes the budget never triggers, so it costs nothing. It only matters for pathological configurations, which is what a safety limit is for. The second row also shows that Swiss is not a substitute for Round Robin: if staff want everyone to play everyone, `roundrobin` does it without rematches.
+
+### R3. Icon selection: `instanceof` versus name
+
+I first wrote `tour.generator instanceof Swiss` in `index.ts` and a name check in `smogtours.ts`, because `smogtours.ts` only imports `Tournament` as a type. Reading the diff showed that the two copies of `renderLink` had started to drift apart. Both now use `generator.name.endsWith('Swiss')`, so the copies stay textually identical and can later be merged mechanically (§11). This adds one more name-based check, the coupling smell described in §5. I accepted that knowingly: it matches the surrounding lines, and the fix for all of them is the same refactor.
+
+### R4. What "through the system" could and could not mean here
+
+The system test drives Swiss through real chat commands (`Chat.parse('/tour create …')`, `/tour join`, `/tour start`, `/tour ready`, `/tour dq`). It stops at `Rooms.createBattle` and reports results through `Tournament.onBattleWin`, exactly as `RoomBattle` does when a battle ends. It does not run real battles, because the test environment disables `ProcessManager` (`test/main.js`), so no simulator worker exists. The existing tournament tests in `test/server/tournaments.js` use the same boundary. A full manual check with real battles is described in `docs/PR.md`.
+
+### R5. Writing tests first: easy for the generator, harder for the system test
+
+The generator's unit tests were written first, failed with `MODULE_NOT_FOUND`, and then passed once the generator existed. The system test, also written first, failed **for the wrong reasons** on its first run, because of two defects in the test itself:
+1. Replies were captured by overriding `connection.send`, but `Connection.sendTo` writes to the socket directly, so nothing was captured.
+2. A typo-type assertion (`swisss`) contained the substring `swiss` and could have passed for the wrong reason.
+
+Only after fixing the test did all five cases fail for the *right* reason (`swiss is not a valid type. Valid types: roundrobin, elimination`). As the assignment says, test-first is easiest on the pieces and hardest on the integration. The integration test had to be debugged before it could be trusted to go red.
